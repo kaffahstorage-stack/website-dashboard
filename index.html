@@ -1,0 +1,421 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dino Runner Real Style</title>
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  overflow:hidden;
+  font-family:Arial,sans-serif;
+  background:#f7f7f7;
+}
+
+#game{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+  background:white;
+  transition:1s;
+}
+
+#ground{
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:80px;
+  border-top:4px solid #444;
+  background:
+  repeating-linear-gradient(
+    90deg,
+    #e5e5e5 0 20px,
+    #dcdcdc 20px 40px
+  );
+}
+
+/* 🦖 DINO PIXEL */
+#dino{
+  position:absolute;
+  left:80px;
+  bottom:80px;
+  width:60px;
+  height:64px;
+}
+
+.dino-body{
+  position:absolute;
+  width:42px;
+  height:42px;
+  background:#222;
+  left:8px;
+  top:12px;
+}
+
+.dino-head{
+  position:absolute;
+  width:24px;
+  height:24px;
+  background:#222;
+  right:0;
+  top:0;
+}
+
+.dino-eye{
+  position:absolute;
+  width:4px;
+  height:4px;
+  background:white;
+  right:5px;
+  top:5px;
+}
+
+.dino-leg1,
+.dino-leg2{
+  position:absolute;
+  width:8px;
+  height:20px;
+  background:#222;
+  bottom:0;
+}
+
+.dino-leg1{
+  left:15px;
+  animation:leg1 .15s infinite alternate;
+}
+
+.dino-leg2{
+  left:32px;
+  animation:leg2 .15s infinite alternate;
+}
+
+@keyframes leg1{
+  from{height:20px;}
+  to{height:12px;}
+}
+
+@keyframes leg2{
+  from{height:12px;}
+  to{height:20px;}
+}
+
+/* 🌵 CACTUS */
+.cactus{
+  position:absolute;
+  bottom:80px;
+  width:30px;
+}
+
+.cactus-main{
+  position:absolute;
+  width:12px;
+  height:100%;
+  background:#1f7a1f;
+  left:9px;
+  border-radius:3px;
+}
+
+.cactus-arm1,
+.cactus-arm2{
+  position:absolute;
+  width:10px;
+  height:20px;
+  background:#1f7a1f;
+  border-radius:3px;
+}
+
+.cactus-arm1{
+  left:0;
+  top:15px;
+}
+
+.cactus-arm2{
+  right:0;
+  top:35px;
+}
+
+#score{
+  position:absolute;
+  top:15px;
+  right:20px;
+  font-size:24px;
+  font-weight:bold;
+  color:#444;
+}
+
+#best{
+  position:absolute;
+  top:45px;
+  right:20px;
+  font-size:14px;
+  color:#777;
+}
+
+#gameover{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  display:none;
+}
+
+#gameover h1{
+  font-size:48px;
+  color:#333;
+}
+
+#gameover p{
+  margin-top:10px;
+  color:#777;
+}
+
+.night{
+  background:#111;
+}
+
+.night #score,
+.night #best,
+.night #gameover h1,
+.night #gameover p{
+  color:white;
+}
+
+.night #ground{
+  border-top:4px solid white;
+}
+
+</style>
+</head>
+<body>
+
+<div id="game">
+
+  <div id="score">0</div>
+  <div id="best">BEST: 0</div>
+
+  <div id="gameover">
+    <h1>GAME OVER</h1>
+    <p>Tekan Space Untuk Restart</p>
+  </div>
+
+  <div id="dino">
+    <div class="dino-body"></div>
+    <div class="dino-head">
+      <div class="dino-eye"></div>
+    </div>
+    <div class="dino-leg1"></div>
+    <div class="dino-leg2"></div>
+  </div>
+
+  <div id="ground"></div>
+
+</div>
+
+<script>
+const dino = document.getElementById('dino');
+const game = document.getElementById('game');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const gameoverEl = document.getElementById('gameover');
+
+let jumping = false;
+let velocity = 0;
+let gravity = 0.9;
+
+let score = 0;
+let speed = 7;
+let running = true;
+
+let best = localStorage.getItem('best-dino') || 0;
+bestEl.innerText = 'BEST: ' + best;
+
+let gameLoops = [];
+
+function beep(freq){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.frequency.value = freq;
+  gain.gain.value = 0.05;
+
+  osc.start();
+  osc.stop(ctx.currentTime + 0.08);
+}
+
+function jump(){
+  if(jumping || !running) return;
+
+  jumping = true;
+  velocity = 16;
+
+  beep(600);
+}
+
+function updateDino(){
+  let bottom = parseInt(getComputedStyle(dino).bottom);
+
+  if(jumping){
+    bottom += velocity;
+    velocity -= gravity;
+
+    if(bottom <= 80){
+      bottom = 80;
+      jumping = false;
+    }
+
+    dino.style.bottom = bottom + 'px';
+  }
+}
+
+function createCactus(){
+
+  const cactus = document.createElement('div');
+  cactus.classList.add('cactus');
+
+  const height = 45 + Math.random()*50;
+
+  cactus.style.height = height + 'px';
+
+  cactus.innerHTML = `
+    <div class="cactus-main"></div>
+    <div class="cactus-arm1"></div>
+    <div class="cactus-arm2"></div>
+  `;
+
+  let pos = window.innerWidth + 100;
+  cactus.style.left = pos + 'px';
+
+  game.appendChild(cactus);
+
+  const move = setInterval(()=>{
+
+    if(!running){
+      clearInterval(move);
+      return;
+    }
+
+    pos -= speed;
+    cactus.style.left = pos + 'px';
+
+    const d = dino.getBoundingClientRect();
+    const c = cactus.getBoundingClientRect();
+
+    if(
+      c.left < d.right - 15 &&
+      c.right > d.left + 15 &&
+      c.top < d.bottom - 10
+    ){
+      gameOver();
+    }
+
+    if(pos < -100){
+      cactus.remove();
+      clearInterval(move);
+    }
+
+  },16);
+
+}
+
+function gameOver(){
+
+  if(!running) return;
+
+  running = false;
+
+  beep(150);
+
+  gameoverEl.style.display = 'block';
+
+  if(score > best){
+    localStorage.setItem('best-dino', score);
+  }
+
+}
+
+function restart(){
+
+  running = true;
+  score = 0;
+  speed = 7;
+  velocity = 0;
+  jumping = false;
+
+  dino.style.bottom = '80px';
+
+  gameoverEl.style.display = 'none';
+
+  document.querySelectorAll('.cactus').forEach(c=>c.remove());
+
+  gameLoops.forEach(loop=>clearInterval(loop));
+
+  startGame();
+
+}
+
+function startGame(){
+
+  const physics = setInterval(()=>{
+    if(running) updateDino();
+  },16);
+
+  const scoreLoop = setInterval(()=>{
+
+    if(!running) return;
+
+    score++;
+
+    scoreEl.innerText = score;
+
+    speed += 0.002;
+
+    // 🌙 NIGHT MODE
+    if(score > 700){
+      game.classList.add('night');
+    }
+
+  },100);
+
+  const cactusLoop = setInterval(()=>{
+
+    if(running) createCactus();
+
+  },1400);
+
+  gameLoops = [physics, scoreLoop, cactusLoop];
+
+}
+
+// controls
+window.addEventListener('keydown',(e)=>{
+
+  if(e.code === 'Space') jump();
+
+  if(e.key.toLowerCase() === 'r') restart();
+
+});
+
+window.addEventListener('click', jump);
+window.addEventListener('touchstart', jump);
+
+startGame();
+
+</script>
+
+</body>
+</html>
+
+
