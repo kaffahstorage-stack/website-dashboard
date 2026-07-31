@@ -1,421 +1,910 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dino Runner Real Style</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Momentum AI — Dashboard</title>
 
-<style>
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-}
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-body{
-  overflow:hidden;
-  font-family:Arial,sans-serif;
-  background:#f7f7f7;
-}
+  <!--
+    =========================================================
+    MOMENTUM AI — Single-File Dashboard
+    ---------------------------------------------------------
+    Tumpukan  : HTML + CSS + JavaScript murni (satu file)
+    Tujuan    : Menampilkan data momentum dari TradingView
+                (nanti melalui Firebase Firestore).
+    Catatan   : Untuk sekarang berjalan dengan data DUMMY.
+                Konfigurasi Firebase disiapkan sebagai
+                placeholder agar mudah dihubungkan nanti.
+    =========================================================
+  -->
 
-#game{
-  position:relative;
-  width:100vw;
-  height:100vh;
-  overflow:hidden;
-  background:white;
-  transition:1s;
-}
+  <style>
+    /* =====================================================
+       1) RESET & VARIABEL DESAIN
+       ===================================================== */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-#ground{
-  position:absolute;
-  bottom:0;
-  width:100%;
-  height:80px;
-  border-top:4px solid #444;
-  background:
-  repeating-linear-gradient(
-    90deg,
-    #e5e5e5 0 20px,
-    #dcdcdc 20px 40px
-  );
-}
+    :root {
+      /* Palet netral, tema terang */
+      --bg:            #f7f8fa;
+      --surface:       #ffffff;
+      --surface-alt:   #fbfbfd;
+      --border:        #e6e8ee;
+      --border-strong: #d5d9e2;
 
-/* 🦖 DINO PIXEL */
-#dino{
-  position:absolute;
-  left:80px;
-  bottom:80px;
-  width:60px;
-  height:64px;
-}
+      --text:          #0f172a;
+      --text-muted:    #64748b;
+      --text-subtle:   #94a3b8;
 
-.dino-body{
-  position:absolute;
-  width:42px;
-  height:42px;
-  background:#222;
-  left:8px;
-  top:12px;
-}
+      --accent:        #111827;
+      --accent-soft:   #eef2ff;
 
-.dino-head{
-  position:absolute;
-  width:24px;
-  height:24px;
-  background:#222;
-  right:0;
-  top:0;
-}
+      --bullish:       #16a34a;
+      --bullish-bg:    #ecfdf5;
+      --bearish:       #dc2626;
+      --bearish-bg:    #fef2f2;
 
-.dino-eye{
-  position:absolute;
-  width:4px;
-  height:4px;
-  background:white;
-  right:5px;
-  top:5px;
-}
+      --online:        #10b981;
+      --online-glow:   rgba(16, 185, 129, .35);
 
-.dino-leg1,
-.dino-leg2{
-  position:absolute;
-  width:8px;
-  height:20px;
-  background:#222;
-  bottom:0;
-}
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
+      --shadow-md: 0 4px 16px rgba(15, 23, 42, .06);
 
-.dino-leg1{
-  left:15px;
-  animation:leg1 .15s infinite alternate;
-}
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
 
-.dino-leg2{
-  left:32px;
-  animation:leg2 .15s infinite alternate;
-}
+      --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
 
-@keyframes leg1{
-  from{height:20px;}
-  to{height:12px;}
-}
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
 
-@keyframes leg2{
-  from{height:12px;}
-  to{height:20px;}
-}
+    /* =====================================================
+       2) LAYOUT UTAMA
+       ===================================================== */
+    .app {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
 
-/* 🌵 CACTUS */
-.cactus{
-  position:absolute;
-  bottom:80px;
-  width:30px;
-}
+    /* ---------- HEADER ---------- */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
 
-.cactus-main{
-  position:absolute;
-  width:12px;
-  height:100%;
-  background:#1f7a1f;
-  left:9px;
-  border-radius:3px;
-}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-.cactus-arm1,
-.cactus-arm2{
-  position:absolute;
-  width:10px;
-  height:20px;
-  background:#1f7a1f;
-  border-radius:3px;
-}
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0f172a, #334155);
+      display: grid;
+      place-items: center;
+      color: #fff;
+    }
 
-.cactus-arm1{
-  left:0;
-  top:15px;
-}
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
 
-.cactus-arm2{
-  right:0;
-  top:35px;
-}
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
 
-#score{
-  position:absolute;
-  top:15px;
-  right:20px;
-  font-size:24px;
-  font-weight:bold;
-  color:#444;
-}
+    .scanner-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #166534;
+    }
 
-#best{
-  position:absolute;
-  top:45px;
-  right:20px;
-  font-size:14px;
-  color:#777;
-}
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--online);
+      box-shadow: 0 0 0 4px var(--online-glow);
+      animation: pulse 1.6s infinite;
+    }
 
-#gameover{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  text-align:center;
-  display:none;
-}
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 var(--online-glow); }
+      50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    }
 
-#gameover h1{
-  font-size:48px;
-  color:#333;
-}
+    /* ---------- KARTU INFORMASI ---------- */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
 
-#gameover p{
-  margin-top:10px;
-  color:#777;
-}
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
 
-.night{
-  background:#111;
-}
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
 
-.night #score,
-.night #best,
-.night #gameover h1,
-.night #gameover p{
-  color:white;
-}
+    .card-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 10px;
+    }
 
-.night #ground{
-  border-top:4px solid white;
-}
+    .card-label i {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2;
+    }
 
-</style>
+    .card-value {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .card-value.time {
+      font-family: var(--font-mono);
+      font-size: 20px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+
+    .badge.bullish { color: var(--bullish); background: var(--bullish-bg); }
+    .badge.bearish { color: var(--bearish); background: var(--bearish-bg); }
+
+    /* ---------- BARIS STATISTIK ---------- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-info .label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .stat-info .value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+    }
+    .stat-icon.total    { background: #eef2ff; color: #4338ca; }
+    .stat-icon.bullish  { background: var(--bullish-bg); color: var(--bullish); }
+    .stat-icon.bearish  { background: var(--bearish-bg); color: var(--bearish); }
+
+    /* ---------- TOOLBAR (SEARCH + REFRESH) ---------- */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toolbar-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar-title h2 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .toolbar-title span {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-box {
+      position: relative;
+    }
+    .search-box i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--text-subtle);
+    }
+    .search-box input {
+      width: 260px;
+      max-width: 100%;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px 9px 36px;
+      font-size: 13px;
+      color: var(--text);
+      transition: border-color .15s ease, background .15s ease;
+      font-family: inherit;
+    }
+    .search-box input:focus {
+      outline: none;
+      border-color: #94a3b8;
+      background: #fff;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+      font-family: inherit;
+    }
+    .btn:hover {
+      background: var(--surface-alt);
+      border-color: var(--border-strong);
+    }
+    .btn:active { transform: scale(.98); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover {
+      background: #1f2937;
+      border-color: #1f2937;
+    }
+
+    /* ---------- TABEL HISTORY ---------- */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 12px 16px;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background .15s ease; }
+    tbody tr:hover { background: #fafbff; }
+
+    .cell-time  { font-family: var(--font-mono); color: var(--text-muted); font-size: 12.5px; }
+    .cell-pair  { font-weight: 600; }
+    .cell-range { font-family: var(--font-mono); }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ---------- FOOTER ---------- */
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    /* =====================================================
+       3) RESPONSIVE
+       ===================================================== */
+    @media (max-width: 1080px) {
+      .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 780px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stats { grid-template-columns: 1fr; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar-actions { justify-content: space-between; }
+      .search-box input { width: 100%; }
+    }
+    @media (max-width: 480px) {
+      .cards { grid-template-columns: 1fr; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .app { padding: 16px 12px 36px; }
+    }
+  </style>
 </head>
+
 <body>
+  <div class="app">
 
-<div id="game">
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+    <header class="header" data-testid="app-header">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <i data-lucide="activity"></i>
+        </div>
+        <div class="brand-text">
+          <h1 data-testid="brand-title">Momentum AI</h1>
+          <p>Realtime TradingView Momentum Dashboard</p>
+        </div>
+      </div>
 
-  <div id="score">0</div>
-  <div id="best">BEST: 0</div>
+      <div class="scanner-status" data-testid="scanner-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Scanner ● Online</span>
+      </div>
+    </header>
 
-  <div id="gameover">
-    <h1>GAME OVER</h1>
-    <p>Tekan Space Untuk Restart</p>
-  </div>
+    <!-- =====================================================
+         KARTU INFORMASI (5 CARD)
+    ====================================================== -->
+    <section class="cards" aria-label="Informasi Momentum Terakhir">
+      <div class="card" data-testid="card-momentum">
+        <div class="card-label"><i data-lucide="trending-up"></i> Momentum Terakhir</div>
+        <div class="card-value">
+          <span id="lastDirectionBadge" class="badge bullish" data-testid="last-direction">Bullish</span>
+        </div>
+      </div>
 
-  <div id="dino">
-    <div class="dino-body"></div>
-    <div class="dino-head">
-      <div class="dino-eye"></div>
+      <div class="card" data-testid="card-range">
+        <div class="card-label"><i data-lucide="move-horizontal"></i> Range</div>
+        <div class="card-value" id="lastRange">63.4 Pip</div>
+      </div>
+
+      <div class="card" data-testid="card-pair">
+        <div class="card-label"><i data-lucide="candlestick-chart"></i> Pair</div>
+        <div class="card-value" id="lastPair">XAUUSD</div>
+      </div>
+
+      <div class="card" data-testid="card-timeframe">
+        <div class="card-label"><i data-lucide="timer"></i> Timeframe</div>
+        <div class="card-value" id="lastTimeframe">M5</div>
+      </div>
+
+      <div class="card" data-testid="card-time">
+        <div class="card-label"><i data-lucide="clock"></i> Waktu</div>
+        <div class="card-value time" id="lastTime">20:35:18</div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         STATISTIK HARIAN
+    ====================================================== -->
+    <section class="stats" aria-label="Statistik Hari Ini">
+      <div class="stat" data-testid="stat-total">
+        <div class="stat-info">
+          <div class="label">Total Signal Hari Ini</div>
+          <div class="value" id="statTotal">0</div>
+        </div>
+        <div class="stat-icon total"><i data-lucide="layers"></i></div>
+      </div>
+
+      <div class="stat" data-testid="stat-bullish">
+        <div class="stat-info">
+          <div class="label">Bullish Hari Ini</div>
+          <div class="value" id="statBullish">0</div>
+        </div>
+        <div class="stat-icon bullish"><i data-lucide="arrow-up-right"></i></div>
+      </div>
+
+      <div class="stat" data-testid="stat-bearish">
+        <div class="stat-info">
+          <div class="label">Bearish Hari Ini</div>
+          <div class="value" id="statBearish">0</div>
+        </div>
+        <div class="stat-icon bearish"><i data-lucide="arrow-down-right"></i></div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         TOOLBAR (SEARCH + REFRESH)
+    ====================================================== -->
+    <div class="toolbar" data-testid="toolbar">
+      <div class="toolbar-title">
+        <h2>History Momentum</h2>
+        <span id="tableCount">0 data</span>
+      </div>
+      <div class="toolbar-actions">
+        <div class="search-box">
+          <i data-lucide="search"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Cari pair, direction, status..."
+            data-testid="search-input"
+          />
+        </div>
+        <button class="btn btn-primary" id="refreshBtn" data-testid="refresh-btn">
+          <i data-lucide="refresh-cw"></i> Refresh
+        </button>
+      </div>
     </div>
-    <div class="dino-leg1"></div>
-    <div class="dino-leg2"></div>
+
+    <!-- =====================================================
+         TABEL HISTORY
+    ====================================================== -->
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table data-testid="history-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Waktu</th>
+              <th>Pair</th>
+              <th>Direction</th>
+              <th>Range</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <!-- Baris tabel akan diisi via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="footer">
+      Momentum AI © <span id="year"></span> — Dashboard monitoring, bukan platform trading.
+    </p>
   </div>
 
-  <div id="ground"></div>
+  <!-- =====================================================
+       JAVASCRIPT
+  ====================================================== -->
+  <script>
+    /* =====================================================
+       A) KONFIGURASI FIREBASE (PLACEHOLDER)
+       -----------------------------------------------------
+       Nanti ganti dengan konfigurasi Firebase asli.
+       Fungsi di bagian F disiapkan sebagai template.
+       ===================================================== */
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
 
-</div>
+    /* =====================================================
+       B) STATE APLIKASI
+       ===================================================== */
+    const state = {
+      allData:      [],   // seluruh data (dummy untuk sekarang)
+      filteredData: [],   // hasil pencarian
+      searchQuery:  ""
+    };
 
-<script>
-const dino = document.getElementById('dino');
-const game = document.getElementById('game');
-const scoreEl = document.getElementById('score');
-const bestEl = document.getElementById('best');
-const gameoverEl = document.getElementById('gameover');
+    /* =====================================================
+       C) DATA DUMMY
+       -----------------------------------------------------
+       Struktur mengikuti spesifikasi:
+       { id, pair, timeframe, direction, range, open, high,
+         low, close, time, status }
+       ===================================================== */
+    function generateDummyData() {
+      const pairs      = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "AUDUSD"];
+      const timeframes = ["M1", "M5", "M15", "M30", "H1"];
+      const statuses   = ["Momentum", "Confirmed", "Strong Momentum"];
 
-let jumping = false;
-let velocity = 0;
-let gravity = 0.9;
+      const now  = new Date();
+      const data = [];
 
-let score = 0;
-let speed = 7;
-let running = true;
+      for (let i = 0; i < 12; i++) {
+        // Waktu mundur beberapa menit tiap entri
+        const t = new Date(now.getTime() - i * (Math.floor(Math.random() * 9) + 3) * 60 * 1000);
 
-let best = localStorage.getItem('best-dino') || 0;
-bestEl.innerText = 'BEST: ' + best;
+        const pair       = pairs[Math.floor(Math.random() * pairs.length)];
+        const timeframe  = timeframes[Math.floor(Math.random() * timeframes.length)];
+        const direction  = Math.random() > 0.5 ? "Bullish" : "Bearish";
+        const status     = statuses[Math.floor(Math.random() * statuses.length)];
+        const rangeValue = +(Math.random() * 90 + 10).toFixed(1);
 
-let gameLoops = [];
+        // OHLC sederhana (dummy)
+        const open  = +(1000 + Math.random() * 4000).toFixed(3);
+        const delta = rangeValue / 10;
+        const close = direction === "Bullish"
+          ? +(open + delta).toFixed(3)
+          : +(open - delta).toFixed(3);
+        const high  = +(Math.max(open, close) + Math.random()).toFixed(3);
+        const low   = +(Math.min(open, close) - Math.random()).toFixed(3);
 
-function beep(freq){
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+        data.push({
+          id:        formatIdFromDate(t),
+          pair:      pair,
+          timeframe: timeframe,
+          direction: direction,
+          range:     rangeValue,
+          open:      open,
+          high:      high,
+          low:       low,
+          close:     close,
+          time:      formatDateTime(t),
+          status:    status
+        });
+      }
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-
-  osc.frequency.value = freq;
-  gain.gain.value = 0.05;
-
-  osc.start();
-  osc.stop(ctx.currentTime + 0.08);
-}
-
-function jump(){
-  if(jumping || !running) return;
-
-  jumping = true;
-  velocity = 16;
-
-  beep(600);
-}
-
-function updateDino(){
-  let bottom = parseInt(getComputedStyle(dino).bottom);
-
-  if(jumping){
-    bottom += velocity;
-    velocity -= gravity;
-
-    if(bottom <= 80){
-      bottom = 80;
-      jumping = false;
+      // Urutkan terbaru di atas
+      data.sort((a, b) => new Date(b.time) - new Date(a.time));
+      return data;
     }
 
-    dino.style.bottom = bottom + 'px';
-  }
-}
+    /* =====================================================
+       D) UTILITAS FORMAT
+       ===================================================== */
+    function pad(n) { return String(n).padStart(2, "0"); }
 
-function createCactus(){
-
-  const cactus = document.createElement('div');
-  cactus.classList.add('cactus');
-
-  const height = 45 + Math.random()*50;
-
-  cactus.style.height = height + 'px';
-
-  cactus.innerHTML = `
-    <div class="cactus-main"></div>
-    <div class="cactus-arm1"></div>
-    <div class="cactus-arm2"></div>
-  `;
-
-  let pos = window.innerWidth + 100;
-  cactus.style.left = pos + 'px';
-
-  game.appendChild(cactus);
-
-  const move = setInterval(()=>{
-
-    if(!running){
-      clearInterval(move);
-      return;
+    function formatDateTime(d) {
+      // "YYYY-MM-DD HH:mm:ss"
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+             `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
-    pos -= speed;
-    cactus.style.left = pos + 'px';
-
-    const d = dino.getBoundingClientRect();
-    const c = cactus.getBoundingClientRect();
-
-    if(
-      c.left < d.right - 15 &&
-      c.right > d.left + 15 &&
-      c.top < d.bottom - 10
-    ){
-      gameOver();
+    function formatIdFromDate(d) {
+      // "YYYYMMDDHHmmss"
+      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+             `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     }
 
-    if(pos < -100){
-      cactus.remove();
-      clearInterval(move);
+    function extractTime(datetimeStr) {
+      // Ambil bagian "HH:mm:ss" dari "YYYY-MM-DD HH:mm:ss"
+      const parts = datetimeStr.split(" ");
+      return parts[1] || datetimeStr;
     }
 
-  },16);
-
-}
-
-function gameOver(){
-
-  if(!running) return;
-
-  running = false;
-
-  beep(150);
-
-  gameoverEl.style.display = 'block';
-
-  if(score > best){
-    localStorage.setItem('best-dino', score);
-  }
-
-}
-
-function restart(){
-
-  running = true;
-  score = 0;
-  speed = 7;
-  velocity = 0;
-  jumping = false;
-
-  dino.style.bottom = '80px';
-
-  gameoverEl.style.display = 'none';
-
-  document.querySelectorAll('.cactus').forEach(c=>c.remove());
-
-  gameLoops.forEach(loop=>clearInterval(loop));
-
-  startGame();
-
-}
-
-function startGame(){
-
-  const physics = setInterval(()=>{
-    if(running) updateDino();
-  },16);
-
-  const scoreLoop = setInterval(()=>{
-
-    if(!running) return;
-
-    score++;
-
-    scoreEl.innerText = score;
-
-    speed += 0.002;
-
-    // 🌙 NIGHT MODE
-    if(score > 700){
-      game.classList.add('night');
+    function isToday(datetimeStr) {
+      const d     = new Date(datetimeStr.replace(" ", "T"));
+      const today = new Date();
+      return d.getFullYear() === today.getFullYear()
+          && d.getMonth()    === today.getMonth()
+          && d.getDate()     === today.getDate();
     }
 
-  },100);
+    /* =====================================================
+       E) RENDER UI
+       ===================================================== */
+    function renderTopCards() {
+      const list = state.allData;
+      if (list.length === 0) return;
 
-  const cactusLoop = setInterval(()=>{
+      const latest = list[0]; // sudah diurutkan terbaru di atas
+      const badge  = document.getElementById("lastDirectionBadge");
 
-    if(running) createCactus();
+      badge.textContent = latest.direction;
+      badge.className   = "badge " + (latest.direction === "Bullish" ? "bullish" : "bearish");
 
-  },1400);
+      document.getElementById("lastRange").textContent     = `${latest.range} Pip`;
+      document.getElementById("lastPair").textContent      = latest.pair;
+      document.getElementById("lastTimeframe").textContent = latest.timeframe;
+      document.getElementById("lastTime").textContent      = extractTime(latest.time);
+    }
 
-  gameLoops = [physics, scoreLoop, cactusLoop];
+    function renderStats() {
+      const todays  = state.allData.filter(d => isToday(d.time));
+      const bullish = todays.filter(d => d.direction === "Bullish").length;
+      const bearish = todays.filter(d => d.direction === "Bearish").length;
 
-}
+      document.getElementById("statTotal").textContent   = todays.length;
+      document.getElementById("statBullish").textContent = bullish;
+      document.getElementById("statBearish").textContent = bearish;
+    }
 
-// controls
-window.addEventListener('keydown',(e)=>{
+    function renderTable() {
+      const tbody = document.getElementById("historyBody");
+      const list  = state.filteredData;
 
-  if(e.code === 'Space') jump();
+      document.getElementById("tableCount").textContent = `${list.length} data`;
 
-  if(e.key.toLowerCase() === 'r') restart();
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6">
+              <div class="empty">Tidak ada data yang cocok.</div>
+            </td>
+          </tr>`;
+        return;
+      }
 
-});
+      tbody.innerHTML = list.map((item, i) => {
+        const dirClass = item.direction === "Bullish" ? "bullish" : "bearish";
+        const arrow    = item.direction === "Bullish" ? "arrow-up-right" : "arrow-down-right";
 
-window.addEventListener('click', jump);
-window.addEventListener('touchstart', jump);
+        return `
+          <tr data-testid="history-row-${i + 1}">
+            <td>${i + 1}</td>
+            <td class="cell-time">${item.time}</td>
+            <td class="cell-pair">${item.pair} <span style="color:var(--text-subtle);font-weight:500">· ${item.timeframe}</span></td>
+            <td>
+              <span class="badge ${dirClass}">
+                <i data-lucide="${arrow}" style="width:12px;height:12px"></i>
+                ${item.direction}
+              </span>
+            </td>
+            <td class="cell-range">${item.range} Pip</td>
+            <td><span class="status-pill">${item.status}</span></td>
+          </tr>`;
+      }).join("");
 
-startGame();
+      // Render ulang ikon Lucide di baris tabel
+      if (window.lucide) window.lucide.createIcons();
+    }
 
-</script>
+    function renderAll() {
+      applySearch();      // hasilkan filteredData
+      renderTopCards();
+      renderStats();
+      renderTable();
+    }
 
+    /* =====================================================
+       F) FIREBASE — TEMPLATE (SIAP DIHUBUNGKAN)
+       -----------------------------------------------------
+       Fungsi-fungsi di bawah masih berupa template.
+       Ketika Firebase asli sudah siap, tinggal impor SDK
+       Firebase (via <script type="module">) lalu isi
+       implementasi di dalam fungsi ini.
+       ===================================================== */
+
+    /**
+     * connectFirebase()
+     * Inisialisasi Firebase menggunakan `firebaseConfig`.
+     * Contoh (nanti):
+     *   const app = firebase.initializeApp(firebaseConfig);
+     *   const db  = firebase.firestore();
+     */
+    function connectFirebase() {
+      console.log("[Firebase] connectFirebase() — placeholder");
+      // TODO: Inisialisasi Firebase di sini.
+    }
+
+    /**
+     * listenMomentum(callback)
+     * Berlangganan (realtime listener) ke koleksi momentum
+     * di Firestore. Contoh (nanti):
+     *
+     *   db.collection("momentum")
+     *     .orderBy("time", "desc")
+     *     .onSnapshot(snap => {
+     *       const items = snap.docs.map(d => d.data());
+     *       callback(items);
+     *     });
+     */
+    function listenMomentum(callback) {
+      console.log("[Firebase] listenMomentum() — placeholder");
+      // TODO: Pasang listener realtime dari Firestore.
+    }
+
+    /**
+     * addMomentum(item)
+     * Menambahkan satu data momentum ke Firestore.
+     * Contoh (nanti):
+     *   db.collection("momentum").doc(item.id).set(item);
+     */
+    function addMomentum(item) {
+      console.log("[Firebase] addMomentum() — placeholder", item);
+      // TODO: Simpan ke Firestore.
+    }
+
+    /* =====================================================
+       G) FITUR: SEARCH, REFRESH, DLL
+       ===================================================== */
+    function applySearch() {
+      const q = state.searchQuery.trim().toLowerCase();
+      if (!q) {
+        state.filteredData = [...state.allData];
+        return;
+      }
+      state.filteredData = state.allData.filter(item =>
+        item.pair.toLowerCase().includes(q)      ||
+        item.direction.toLowerCase().includes(q) ||
+        item.status.toLowerCase().includes(q)    ||
+        item.timeframe.toLowerCase().includes(q) ||
+        item.time.toLowerCase().includes(q)
+      );
+    }
+
+    function refreshData() {
+      // Untuk sekarang: regenerate data dummy.
+      // Nanti: cukup panggil listenMomentum() atau fetch ulang.
+      state.allData = generateDummyData();
+      renderAll();
+    }
+
+    /* =====================================================
+       H) INISIALISASI APLIKASI
+       ===================================================== */
+    function initEventListeners() {
+      document.getElementById("searchInput").addEventListener("input", (e) => {
+        state.searchQuery = e.target.value;
+        applySearch();
+        renderTable();
+      });
+
+      document.getElementById("refreshBtn").addEventListener("click", () => {
+        refreshData();
+      });
+    }
+
+    function startClock() {
+      // Perbarui jam pada kartu "Waktu" agar dashboard terlihat "hidup"
+      setInterval(() => {
+        const el = document.getElementById("lastTime");
+        if (!el) return;
+        const n = new Date();
+        el.textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+      }, 1000);
+    }
+
+    function init() {
+      // Tahun footer
+      document.getElementById("year").textContent = new Date().getFullYear();
+
+      // Icon
+      if (window.lucide) window.lucide.createIcons();
+
+      // Firebase (masih placeholder)
+      connectFirebase();
+
+      // Data dummy awal (min. 10 data — di sini 12)
+      state.allData = generateDummyData();
+      renderAll();
+
+      // Nanti aktifkan listener Firebase:
+      // listenMomentum(items => { state.allData = items; renderAll(); });
+
+      initEventListeners();
+      startClock();
+    }
+
+    // Jalankan setelah DOM siap
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  </script>
 </body>
 </html>
-
-
