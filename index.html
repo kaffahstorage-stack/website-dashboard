@@ -14,10 +14,7 @@
     ---------------------------------------------------------
     Tumpukan  : HTML + CSS + JavaScript murni (satu file)
     Tujuan    : Menampilkan data momentum dari TradingView
-                (nanti melalui Firebase Firestore).
-    Catatan   : Untuk sekarang berjalan dengan data DUMMY.
-                Konfigurasi Firebase disiapkan sebagai
-                placeholder agar mudah dihubungkan nanti.
+                melalui Firebase Firestore secara REALTIME.
     =========================================================
   -->
 
@@ -55,6 +52,10 @@
 
       --online:        #10b981;
       --online-glow:   rgba(16, 185, 129, .35);
+      --offline:       #94a3b8;
+      --warning:       #d97706;
+      --warning-bg:    #fffbeb;
+      --warning-border:#fde68a;
 
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
       --shadow-md: 0 4px 16px rgba(15, 23, 42, .06);
@@ -137,6 +138,18 @@
       font-size: 13px;
       font-weight: 500;
       color: #166534;
+      transition: background .2s ease, border-color .2s ease, color .2s ease;
+    }
+
+    .scanner-status.offline {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #64748b;
+    }
+    .scanner-status.offline .status-dot {
+      background: var(--offline);
+      box-shadow: none;
+      animation: none;
     }
 
     .status-dot {
@@ -152,6 +165,28 @@
       0%, 100% { box-shadow: 0 0 0 0 var(--online-glow); }
       50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
     }
+
+    /* ---------- BANNER KONFIGURASI ---------- */
+    .config-banner {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .config-banner.visible { display: flex; }
+    .config-banner i {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .config-banner b { color: #92400e; }
 
     /* ---------- KARTU INFORMASI ---------- */
     .cards {
@@ -205,6 +240,12 @@
       font-size: 20px;
     }
 
+    .card-value .placeholder {
+      color: var(--text-subtle);
+      font-weight: 500;
+      font-size: 18px;
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
@@ -218,6 +259,7 @@
 
     .badge.bullish { color: var(--bullish); background: var(--bullish-bg); }
     .badge.bearish { color: var(--bearish); background: var(--bearish-bg); }
+    .badge.neutral { color: var(--text-subtle); background: #f1f5f9; }
 
     /* ---------- BARIS STATISTIK ---------- */
     .stats {
@@ -358,6 +400,9 @@
       border-color: #1f2937;
     }
 
+    .btn.spinning i { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* ---------- TABEL HISTORY ---------- */
     .table-wrap {
       background: var(--surface);
@@ -401,6 +446,12 @@
     tbody tr:last-child td { border-bottom: none; }
     tbody tr { transition: background .15s ease; }
     tbody tr:hover { background: #fafbff; }
+    tbody tr.new-row { animation: rowIn .6s ease; }
+
+    @keyframes rowIn {
+      from { background: #ecfdf5; }
+      to   { background: transparent; }
+    }
 
     .cell-time  { font-family: var(--font-mono); color: var(--text-muted); font-size: 12.5px; }
     .cell-pair  { font-weight: 600; }
@@ -471,11 +522,24 @@
         </div>
       </div>
 
-      <div class="scanner-status" data-testid="scanner-status">
+      <div id="scannerStatus" class="scanner-status offline" data-testid="scanner-status">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>Scanner ● Online</span>
+        <span id="scannerStatusText">Scanner ● Menghubungkan...</span>
       </div>
     </header>
+
+    <!-- =====================================================
+         BANNER: Firebase belum dikonfigurasi
+    ====================================================== -->
+    <div id="configBanner" class="config-banner" data-testid="config-banner">
+      <i data-lucide="alert-triangle"></i>
+      <div>
+        <b>Firebase belum dikonfigurasi.</b>
+        Isi variabel <code>firebaseConfig</code> di dalam file <code>index.html</code> dengan
+        konfigurasi project Firebase Anda, lalu muat ulang halaman untuk mulai menerima data
+        realtime dari koleksi <code>momentum_signals</code>.
+      </div>
+    </div>
 
     <!-- =====================================================
          KARTU INFORMASI (5 CARD)
@@ -484,28 +548,28 @@
       <div class="card" data-testid="card-momentum">
         <div class="card-label"><i data-lucide="trending-up"></i> Momentum Terakhir</div>
         <div class="card-value">
-          <span id="lastDirectionBadge" class="badge bullish" data-testid="last-direction">Bullish</span>
+          <span id="lastDirectionBadge" class="badge neutral" data-testid="last-direction">—</span>
         </div>
       </div>
 
       <div class="card" data-testid="card-range">
         <div class="card-label"><i data-lucide="move-horizontal"></i> Range</div>
-        <div class="card-value" id="lastRange">63.4 Pip</div>
+        <div class="card-value" id="lastRange"><span class="placeholder">—</span></div>
       </div>
 
       <div class="card" data-testid="card-pair">
         <div class="card-label"><i data-lucide="candlestick-chart"></i> Pair</div>
-        <div class="card-value" id="lastPair">XAUUSD</div>
+        <div class="card-value" id="lastPair"><span class="placeholder">—</span></div>
       </div>
 
       <div class="card" data-testid="card-timeframe">
         <div class="card-label"><i data-lucide="timer"></i> Timeframe</div>
-        <div class="card-value" id="lastTimeframe">M5</div>
+        <div class="card-value" id="lastTimeframe"><span class="placeholder">—</span></div>
       </div>
 
       <div class="card" data-testid="card-time">
         <div class="card-label"><i data-lucide="clock"></i> Waktu</div>
-        <div class="card-value time" id="lastTime">20:35:18</div>
+        <div class="card-value time" id="lastTime"><span class="placeholder">—</span></div>
       </div>
     </section>
 
@@ -579,7 +643,11 @@
             </tr>
           </thead>
           <tbody id="historyBody">
-            <!-- Baris tabel akan diisi via JavaScript -->
+            <tr>
+              <td colspan="6">
+                <div class="empty" id="emptyState">Menunggu data dari Firebase Firestore...</div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -591,14 +659,30 @@
   </div>
 
   <!-- =====================================================
-       JAVASCRIPT
+       JAVASCRIPT (Firebase v10 modular via CDN)
   ====================================================== -->
-  <script>
+  <script type="module">
     /* =====================================================
-       A) KONFIGURASI FIREBASE (PLACEHOLDER)
+       A) IMPORT FIREBASE SDK (ESM CDN)
+       ===================================================== */
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      orderBy,
+      limit,
+      onSnapshot,
+      addDoc,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    /* =====================================================
+       B) KONFIGURASI FIREBASE
        -----------------------------------------------------
-       Nanti ganti dengan konfigurasi Firebase asli.
-       Fungsi di bagian F disiapkan sebagai template.
+       Ganti nilai di bawah dengan konfigurasi asli dari
+       Firebase Console (Project settings → General → Your apps).
        ===================================================== */
     const firebaseConfig = {
       apiKey:            "YOUR_API_KEY",
@@ -609,116 +693,83 @@
       appId:             "YOUR_APP_ID"
     };
 
+    /* Nama koleksi Firestore & batas dokumen yang dipantau */
+    const COLLECTION_NAME = "momentum_signals";
+    const MAX_DOCS        = 100;
+
     /* =====================================================
-       B) STATE APLIKASI
+       C) STATE APLIKASI
        ===================================================== */
     const state = {
-      allData:      [],   // seluruh data (dummy untuk sekarang)
-      filteredData: [],   // hasil pencarian
-      searchQuery:  ""
+      allData:       [],   // Data realtime dari Firestore (maks 100)
+      filteredData:  [],   // Hasil pencarian
+      searchQuery:   "",
+      knownIds:      new Set(),  // Untuk animasi baris baru
+      firstSnapshot: true,
+      unsubscribe:   null        // Fungsi untuk membatalkan listener
     };
-
-    /* =====================================================
-       C) DATA DUMMY
-       -----------------------------------------------------
-       Struktur mengikuti spesifikasi:
-       { id, pair, timeframe, direction, range, open, high,
-         low, close, time, status }
-       ===================================================== */
-    function generateDummyData() {
-      const pairs      = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "AUDUSD"];
-      const timeframes = ["M1", "M5", "M15", "M30", "H1"];
-      const statuses   = ["Momentum", "Confirmed", "Strong Momentum"];
-
-      const now  = new Date();
-      const data = [];
-
-      for (let i = 0; i < 12; i++) {
-        // Waktu mundur beberapa menit tiap entri
-        const t = new Date(now.getTime() - i * (Math.floor(Math.random() * 9) + 3) * 60 * 1000);
-
-        const pair       = pairs[Math.floor(Math.random() * pairs.length)];
-        const timeframe  = timeframes[Math.floor(Math.random() * timeframes.length)];
-        const direction  = Math.random() > 0.5 ? "Bullish" : "Bearish";
-        const status     = statuses[Math.floor(Math.random() * statuses.length)];
-        const rangeValue = +(Math.random() * 90 + 10).toFixed(1);
-
-        // OHLC sederhana (dummy)
-        const open  = +(1000 + Math.random() * 4000).toFixed(3);
-        const delta = rangeValue / 10;
-        const close = direction === "Bullish"
-          ? +(open + delta).toFixed(3)
-          : +(open - delta).toFixed(3);
-        const high  = +(Math.max(open, close) + Math.random()).toFixed(3);
-        const low   = +(Math.min(open, close) - Math.random()).toFixed(3);
-
-        data.push({
-          id:        formatIdFromDate(t),
-          pair:      pair,
-          timeframe: timeframe,
-          direction: direction,
-          range:     rangeValue,
-          open:      open,
-          high:      high,
-          low:       low,
-          close:     close,
-          time:      formatDateTime(t),
-          status:    status
-        });
-      }
-
-      // Urutkan terbaru di atas
-      data.sort((a, b) => new Date(b.time) - new Date(a.time));
-      return data;
-    }
 
     /* =====================================================
        D) UTILITAS FORMAT
        ===================================================== */
-    function pad(n) { return String(n).padStart(2, "0"); }
-
-    function formatDateTime(d) {
-      // "YYYY-MM-DD HH:mm:ss"
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
-             `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    }
-
-    function formatIdFromDate(d) {
-      // "YYYYMMDDHHmmss"
-      return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
-             `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    }
+    const pad = n => String(n).padStart(2, "0");
 
     function extractTime(datetimeStr) {
-      // Ambil bagian "HH:mm:ss" dari "YYYY-MM-DD HH:mm:ss"
-      const parts = datetimeStr.split(" ");
+      if (!datetimeStr) return "—";
+      const parts = String(datetimeStr).split(" ");
       return parts[1] || datetimeStr;
     }
 
     function isToday(datetimeStr) {
-      const d     = new Date(datetimeStr.replace(" ", "T"));
+      if (!datetimeStr) return false;
+      const d = new Date(String(datetimeStr).replace(" ", "T"));
+      if (isNaN(d.getTime())) return false;
       const today = new Date();
       return d.getFullYear() === today.getFullYear()
           && d.getMonth()    === today.getMonth()
           && d.getDate()     === today.getDate();
     }
 
+    /* Deteksi apakah firebaseConfig masih berisi placeholder */
+    function isConfigPlaceholder(cfg) {
+      return !cfg.apiKey    || cfg.apiKey.startsWith("YOUR_")
+          || !cfg.projectId || cfg.projectId.startsWith("YOUR_")
+          || !cfg.appId     || cfg.appId.startsWith("YOUR_");
+    }
+
     /* =====================================================
        E) RENDER UI
        ===================================================== */
+    function setScannerStatus(mode, text) {
+      const el   = document.getElementById("scannerStatus");
+      const txt  = document.getElementById("scannerStatusText");
+      el.classList.toggle("offline", mode !== "online");
+      txt.textContent = text;
+    }
+
     function renderTopCards() {
       const list = state.allData;
-      if (list.length === 0) return;
+      const badge = document.getElementById("lastDirectionBadge");
 
-      const latest = list[0]; // sudah diurutkan terbaru di atas
-      const badge  = document.getElementById("lastDirectionBadge");
+      if (list.length === 0) {
+        badge.textContent = "—";
+        badge.className   = "badge neutral";
+        document.getElementById("lastRange").innerHTML     = '<span class="placeholder">—</span>';
+        document.getElementById("lastPair").innerHTML      = '<span class="placeholder">—</span>';
+        document.getElementById("lastTimeframe").innerHTML = '<span class="placeholder">—</span>';
+        document.getElementById("lastTime").innerHTML      = '<span class="placeholder">—</span>';
+        return;
+      }
 
-      badge.textContent = latest.direction;
-      badge.className   = "badge " + (latest.direction === "Bullish" ? "bullish" : "bearish");
+      const latest = list[0]; // data terbaru berada di indeks 0
+      badge.textContent = latest.direction || "—";
+      badge.className   = "badge " + (latest.direction === "Bullish" ? "bullish"
+                                    : latest.direction === "Bearish" ? "bearish"
+                                    : "neutral");
 
-      document.getElementById("lastRange").textContent     = `${latest.range} Pip`;
-      document.getElementById("lastPair").textContent      = latest.pair;
-      document.getElementById("lastTimeframe").textContent = latest.timeframe;
+      document.getElementById("lastRange").textContent     = (latest.range ?? 0) + " Pip";
+      document.getElementById("lastPair").textContent      = latest.pair || "—";
+      document.getElementById("lastTimeframe").textContent = latest.timeframe || "—";
       document.getElementById("lastTime").textContent      = extractTime(latest.time);
     }
 
@@ -739,97 +790,158 @@
       document.getElementById("tableCount").textContent = `${list.length} data`;
 
       if (list.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6">
-              <div class="empty">Tidak ada data yang cocok.</div>
-            </td>
-          </tr>`;
+        const msg = state.allData.length === 0
+          ? "Menunggu data dari Firebase Firestore..."
+          : "Tidak ada data yang cocok.";
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty">${msg}</div></td></tr>`;
         return;
       }
 
       tbody.innerHTML = list.map((item, i) => {
-        const dirClass = item.direction === "Bullish" ? "bullish" : "bearish";
-        const arrow    = item.direction === "Bullish" ? "arrow-up-right" : "arrow-down-right";
+        const dirClass = item.direction === "Bullish" ? "bullish"
+                       : item.direction === "Bearish" ? "bearish"
+                       : "neutral";
+        const arrow    = item.direction === "Bullish" ? "arrow-up-right"
+                       : item.direction === "Bearish" ? "arrow-down-right"
+                       : "minus";
+        // Tandai baris "baru" untuk animasi highlight sekali
+        const isNew    = !state.firstSnapshot && !state.knownIds.has(item.id);
+        const rowCls   = isNew ? "new-row" : "";
 
         return `
-          <tr data-testid="history-row-${i + 1}">
+          <tr class="${rowCls}" data-testid="history-row-${i + 1}">
             <td>${i + 1}</td>
-            <td class="cell-time">${item.time}</td>
-            <td class="cell-pair">${item.pair} <span style="color:var(--text-subtle);font-weight:500">· ${item.timeframe}</span></td>
+            <td class="cell-time">${item.time || "—"}</td>
+            <td class="cell-pair">${item.pair || "—"} <span style="color:var(--text-subtle);font-weight:500">· ${item.timeframe || ""}</span></td>
             <td>
               <span class="badge ${dirClass}">
                 <i data-lucide="${arrow}" style="width:12px;height:12px"></i>
-                ${item.direction}
+                ${item.direction || "—"}
               </span>
             </td>
-            <td class="cell-range">${item.range} Pip</td>
-            <td><span class="status-pill">${item.status}</span></td>
+            <td class="cell-range">${item.range ?? 0} Pip</td>
+            <td><span class="status-pill">${item.status || "Momentum"}</span></td>
           </tr>`;
       }).join("");
 
-      // Render ulang ikon Lucide di baris tabel
       if (window.lucide) window.lucide.createIcons();
     }
 
     function renderAll() {
-      applySearch();      // hasilkan filteredData
+      applySearch();
       renderTopCards();
       renderStats();
       renderTable();
     }
 
     /* =====================================================
-       F) FIREBASE — TEMPLATE (SIAP DIHUBUNGKAN)
+       F) FIREBASE — REALTIME
        -----------------------------------------------------
-       Fungsi-fungsi di bawah masih berupa template.
-       Ketika Firebase asli sudah siap, tinggal impor SDK
-       Firebase (via <script type="module">) lalu isi
-       implementasi di dalam fungsi ini.
+       connectFirebase()   : inisialisasi Firebase App + Firestore
+       listenMomentum()    : listener realtime (onSnapshot) ke
+                             koleksi `momentum_signals`, diurutkan
+                             berdasarkan `time` terbaru, dibatasi
+                             MAX_DOCS dokumen terakhir.
+       addMomentum(item)   : tambah 1 dokumen momentum (helper,
+                             biasanya diisi dari webhook backend).
        ===================================================== */
 
-    /**
-     * connectFirebase()
-     * Inisialisasi Firebase menggunakan `firebaseConfig`.
-     * Contoh (nanti):
-     *   const app = firebase.initializeApp(firebaseConfig);
-     *   const db  = firebase.firestore();
-     */
+    let firebaseApp = null;
+    let firestoreDb = null;
+
     function connectFirebase() {
-      console.log("[Firebase] connectFirebase() — placeholder");
-      // TODO: Inisialisasi Firebase di sini.
+      if (isConfigPlaceholder(firebaseConfig)) {
+        document.getElementById("configBanner").classList.add("visible");
+        setScannerStatus("offline", "Scanner ● Belum Terhubung");
+        console.warn("[Firebase] firebaseConfig masih placeholder — listener tidak dijalankan.");
+        return false;
+      }
+
+      try {
+        firebaseApp = initializeApp(firebaseConfig);
+        firestoreDb = getFirestore(firebaseApp);
+        console.log("[Firebase] Initialized:", firebaseConfig.projectId);
+        return true;
+      } catch (err) {
+        console.error("[Firebase] Gagal inisialisasi:", err);
+        setScannerStatus("offline", "Scanner ● Error Init");
+        return false;
+      }
     }
 
-    /**
-     * listenMomentum(callback)
-     * Berlangganan (realtime listener) ke koleksi momentum
-     * di Firestore. Contoh (nanti):
-     *
-     *   db.collection("momentum")
-     *     .orderBy("time", "desc")
-     *     .onSnapshot(snap => {
-     *       const items = snap.docs.map(d => d.data());
-     *       callback(items);
-     *     });
-     */
-    function listenMomentum(callback) {
-      console.log("[Firebase] listenMomentum() — placeholder");
-      // TODO: Pasang listener realtime dari Firestore.
+    function listenMomentum() {
+      if (!firestoreDb) return;
+
+      setScannerStatus("offline", "Scanner ● Menghubungkan...");
+
+      // Query: ambil MAX_DOCS dokumen terbaru berdasarkan field `time`
+      const q = query(
+        collection(firestoreDb, COLLECTION_NAME),
+        orderBy("time", "desc"),
+        limit(MAX_DOCS)
+      );
+
+      // Realtime listener — dashboard otomatis update pada perubahan apa pun
+      state.unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const items = snapshot.docs.map(d => {
+            const data = d.data();
+            // Pastikan setiap item punya `id` (fallback ke id dokumen Firestore)
+            return { ...data, id: data.id || d.id };
+          });
+
+          state.allData = items;
+          renderAll();
+
+          // Tandai semua id yang sudah dikenal untuk animasi baris baru
+          state.knownIds = new Set(items.map(x => x.id));
+          state.firstSnapshot = false;
+
+          setScannerStatus("online", "Scanner ● Online");
+        },
+        (err) => {
+          console.error("[Firebase] onSnapshot error:", err);
+          setScannerStatus("offline", "Scanner ● Terputus");
+        }
+      );
     }
 
-    /**
-     * addMomentum(item)
-     * Menambahkan satu data momentum ke Firestore.
-     * Contoh (nanti):
-     *   db.collection("momentum").doc(item.id).set(item);
-     */
-    function addMomentum(item) {
-      console.log("[Firebase] addMomentum() — placeholder", item);
-      // TODO: Simpan ke Firestore.
+    async function addMomentum(item) {
+      // Helper — biasanya tidak dipanggil dari dashboard, tapi disediakan
+      // agar mudah untuk testing / integrasi webhook dari sisi client.
+      if (!firestoreDb) {
+        console.warn("[Firebase] addMomentum() dipanggil tapi Firestore belum siap.");
+        return;
+      }
+      const payload = {
+        id:        item.id || "",
+        pair:      item.pair || "",
+        timeframe: item.timeframe || "",
+        direction: item.direction || "",
+        range:     item.range ?? 0,
+        open:      item.open ?? 0,
+        high:      item.high ?? 0,
+        low:       item.low ?? 0,
+        close:     item.close ?? 0,
+        time:      item.time || "",
+        status:    item.status || "Momentum"
+      };
+
+      if (payload.id) {
+        // Gunakan id kustom sebagai document ID (idempoten)
+        await setDoc(doc(firestoreDb, COLLECTION_NAME, payload.id), payload);
+      } else {
+        await addDoc(collection(firestoreDb, COLLECTION_NAME), payload);
+      }
     }
+
+    // Expose ke window untuk kemudahan debugging di console browser
+    window.addMomentum   = addMomentum;
+    window.momentumState = state;
 
     /* =====================================================
-       G) FITUR: SEARCH, REFRESH, DLL
+       G) FITUR: SEARCH & REFRESH
        ===================================================== */
     function applySearch() {
       const q = state.searchQuery.trim().toLowerCase();
@@ -838,19 +950,27 @@
         return;
       }
       state.filteredData = state.allData.filter(item =>
-        item.pair.toLowerCase().includes(q)      ||
-        item.direction.toLowerCase().includes(q) ||
-        item.status.toLowerCase().includes(q)    ||
-        item.timeframe.toLowerCase().includes(q) ||
-        item.time.toLowerCase().includes(q)
+        String(item.pair      || "").toLowerCase().includes(q) ||
+        String(item.direction || "").toLowerCase().includes(q) ||
+        String(item.status    || "").toLowerCase().includes(q) ||
+        String(item.timeframe || "").toLowerCase().includes(q) ||
+        String(item.time      || "").toLowerCase().includes(q)
       );
     }
 
     function refreshData() {
-      // Untuk sekarang: regenerate data dummy.
-      // Nanti: cukup panggil listenMomentum() atau fetch ulang.
-      state.allData = generateDummyData();
-      renderAll();
+      // Data selalu realtime dari Firestore. Tombol Refresh hanya melakukan
+      // re-render tampilan (dan restart listener bila terputus).
+      const btn = document.getElementById("refreshBtn");
+      btn.classList.add("spinning");
+
+      if (firestoreDb && !state.unsubscribe) {
+        listenMomentum();
+      } else {
+        renderAll();
+      }
+
+      setTimeout(() => btn.classList.remove("spinning"), 600);
     }
 
     /* =====================================================
@@ -863,43 +983,35 @@
         renderTable();
       });
 
-      document.getElementById("refreshBtn").addEventListener("click", () => {
-        refreshData();
-      });
+      document.getElementById("refreshBtn").addEventListener("click", refreshData);
     }
 
     function startClock() {
-      // Perbarui jam pada kartu "Waktu" agar dashboard terlihat "hidup"
+      // Perbarui kartu "Waktu" tiap detik hanya bila belum ada data
+      // (agar tidak menimpa timestamp asli dari Firestore).
       setInterval(() => {
+        if (state.allData.length > 0) return;
         const el = document.getElementById("lastTime");
-        if (!el) return;
-        const n = new Date();
+        const n  = new Date();
         el.textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
       }, 1000);
     }
 
     function init() {
-      // Tahun footer
       document.getElementById("year").textContent = new Date().getFullYear();
-
-      // Icon
       if (window.lucide) window.lucide.createIcons();
-
-      // Firebase (masih placeholder)
-      connectFirebase();
-
-      // Data dummy awal (min. 10 data — di sini 12)
-      state.allData = generateDummyData();
-      renderAll();
-
-      // Nanti aktifkan listener Firebase:
-      // listenMomentum(items => { state.allData = items; renderAll(); });
 
       initEventListeners();
       startClock();
+
+      // Render kondisi awal (kosong)
+      renderAll();
+
+      // Sambungkan Firebase dan mulai listener realtime
+      const ok = connectFirebase();
+      if (ok) listenMomentum();
     }
 
-    // Jalankan setelah DOM siap
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", init);
     } else {
